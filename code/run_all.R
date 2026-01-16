@@ -2,19 +2,20 @@
 # ============================================================
 # snow-TWCR | run_all.R  (MAIN ENTRY POINT)
 #
-# This script SOURCES helper files from /code and runs the full workflow.
-# It automatically uses all AWS stations that have valid lat/lon/elev_m.
+# Portable setup:
+#   - INPUTS + OUTPUTS are controlled by environment variable:
+#       SNOW_TWCR_BASEDIR
+#   - This folder should contain:
+#       snow_field_measurements.xlsx 
+#       modi.tif #DEM name
+#   - Outputs are written to:
+#       <SNOW_TWCR_BASEDIR>/maps_final/
 #
-# REQUIREMENTS (user provides locally):
-#   - Excel file: snow_field_measurements.xlsx
-#     (sheets: depth_raw, density, stations_meta, stations_10min)
-#   - DEM GeoTIFF: modi.tif (must have CRS)
+# Run from repo root:
+#   setwd(".../snow-TWCR-main")
+#   Sys.setenv(SNOW_TWCR_BASEDIR="C:/path/to/your/workspace")
+#   source("code/run_all.R")
 #
-# OUTPUTS:
-#   - maps_final/depth/Depth_YYYYMMDD_raw.tif
-#   - maps_final/depth/Depth_YYYYMMDD_capXX.tif
-#   - maps_final/swe/SWE_YYYYMMDD_capXX.tif
-#   - maps_final/met/hillshade_UTM.tif (optional)
 # ============================================================
 
 suppressPackageStartupMessages({
@@ -36,11 +37,34 @@ source(file.path("code", "aws_psnow.R"))
 source(file.path("code", "mapping_model.R"))
 
 # -----------------------------
-# USER PATHS (EDIT THESE)
+# PORTABLE WORKSPACE (ENV VAR)
 # -----------------------------
-base_dir  <- "C:/Users/AngelosT/Documents/DSS"
+# Users set this once per session:
+#   Sys.setenv(SNOW_TWCR_BASEDIR="C:/Users/angel/OneDrive/Documents/Detailed Snow Survey Paper")
+#
+base_dir <- Sys.getenv("SNOW_TWCR_BASEDIR")
+
+if (nchar(base_dir) == 0) {
+  if (interactive()) {
+    message("SNOW_TWCR_BASEDIR is not set. Please select the WORKSPACE folder (contains Excel + DEM).")
+    base_dir <- choose.dir()
+    if (is.na(base_dir) || nchar(base_dir) == 0) stop("❌ No workspace selected. Set SNOW_TWCR_BASEDIR and re-run.")
+    Sys.setenv(SNOW_TWCR_BASEDIR = base_dir)
+  } else {
+    stop("❌ Environment variable SNOW_TWCR_BASEDIR is not set.\n",
+         "Set it before running, e.g.:\n",
+         "  Sys.setenv(SNOW_TWCR_BASEDIR='C:/path/to/workspace')\n",
+         "Your workspace must contain: snow_field_measurements.xlsx and modi.tif")
+  }
+}
+
+cat("\n✅ Using workspace (SNOW_TWCR_BASEDIR):\n", base_dir, "\n\n")
+
 xlsx_path <- file.path(base_dir, "snow_field_measurements.xlsx")
 dem_path  <- file.path(base_dir, "modi.tif")
+
+if (!file.exists(xlsx_path)) stop("❌ Input Excel not found:\n", xlsx_path)
+if (!file.exists(dem_path))  stop("❌ DEM not found:\n", dem_path)
 
 # One clean output folder
 out_base  <- file.path(base_dir, "maps_final")
@@ -55,7 +79,17 @@ dir.create(out_met,   showWarnings = FALSE, recursive = TRUE)
 # -----------------------------
 # STUDY REGION (EPSG:4326 bbox)
 # -----------------------------
-bbox_ll <- list(S=40.612980, N=40.693127, W=23.577241, E=23.747495)
+# Base bbox (original)
+bbox_ll <- list(S=40.612980, N=40.693127, W=23.600922, E=23.747495)
+
+# Expand WEST by this many km (set to 0 to disable)
+WEST_BUFFER_KM <- 2
+
+# Convert km -> degrees longitude at mid-latitude of bbox
+mid_lat <- (bbox_ll$S + bbox_ll$N) / 2
+km_per_deg_lon <- 111.32 * cos(mid_lat * pi/180)
+delta_lon_deg <- WEST_BUFFER_KM / km_per_deg_lon
+bbox_ll$W <- bbox_ll$W - delta_lon_deg
 
 # UTM zone 34N
 utm_crs <- "EPSG:32634"
@@ -120,7 +154,7 @@ bbox_poly_ll <- st_as_sfc(st_bbox(c(xmin=bbox_ll$W, ymin=bbox_ll$S,
                                     xmax=bbox_ll$E, ymax=bbox_ll$N), crs=4326))
 
 dem_ll <- mask(crop(dem, vect(bbox_poly_ll), snap="out"), vect(bbox_poly_ll))
-if (ncell(dem_ll) == 0) stop("❌ DEM crop produced 0 cells. Check bbox overlap.")
+if (ncell(dem_ll) == 0) stop("❌ DEM crop produced 0 cells. Check bbox overlap / DEM coverage.")
 
 dem_c <- project(dem_ll, utm_crs, method="bilinear")
 names(dem_c) <- "elev"
@@ -146,12 +180,10 @@ idx <- grid_df$cell
 
 grid_df$dist_sea_km <- values(dist_sea_km)[idx]
 grid_df$dist_sea_km[is.na(grid_df$dist_sea_km)] <- median(grid_df$dist_sea_km, na.rm=TRUE)
-elev_vec <- grid_df$elev
 
 # ============================================================
 # 5) BUILD SWE POINT DATA (density imputation by elevation)
 # ============================================================
-# robust to missing coords: returns NA elev for those points instead of crashing
 depth_pt$elev_dem <- extract_elev_points(depth_pt %>% select(lon, lat), dem_c)
 density_raw$elev_dem <- extract_elev_points(density_raw %>% select(lon, lat), dem_c)
 
@@ -218,7 +250,6 @@ run_one_day <- function(day_date) {
     filter(survey_date == as.Date(day_date)) %>%
     mutate(val = depth_mean_cm)
 
-  # raw depth
   predict_two_stage_to_tif(
     points_df = depth_pts_day,
     varname = "Depth",
@@ -233,7 +264,6 @@ run_one_day <- function(day_date) {
     out_tif = file.path(out_depth, paste0("Depth_", format(as.Date(day_date), "%Y%m%d"), "_raw.tif"))
   )
 
-  # capped depth
   predict_two_stage_to_tif(
     points_df = depth_pts_day,
     varname = "Depth",
@@ -278,4 +308,3 @@ run_one_day(as.Date("2025-01-14"))
 run_one_day(as.Date("2025-01-15"))
 
 cat("\n✅ Done.\nAll outputs under:", out_base, "\n")
-
