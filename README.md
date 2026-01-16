@@ -82,6 +82,34 @@ R packages used:
 3. Run:
    - in R: `source("code/run_all.R")`
    - or command line: `Rscript code/run_all.R`
+  
+
+## Portable running on any computer (recommended)
+
+This workflow separates:
+- the **repository folder** (this GitHub code), and
+- a **workspace folder** (your local inputs + outputs).
+
+The workspace folder is defined via an environment variable:
+
+- `SNOW_TWCR_BASEDIR` = path to the folder that contains:
+  - `snow_field_measurements.xlsx`
+  - `modi.tif` #your DEM name
+  - and where outputs will be written (`maps_final/`)
+
+### Example workspace layout
+Your workspace folder should look like:
+
+- `<SNOW_TWCR_BASEDIR>/snow_field_measurements.xlsx`
+- `<SNOW_TWCR_BASEDIR>/modi.tif`
+- `<SNOW_TWCR_BASEDIR>/maps_final/` (created automatically)
+
+### Run in R (recommended)
+From the repository root (the folder that contains `code/`):
+
+```r
+Sys.setenv(SNOW_TWCR_BASEDIR = "C:/path/to/your/workspace")
+source("code/run_all.R")
 
 ---
 
