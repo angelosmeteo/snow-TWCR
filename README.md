@@ -3,13 +3,16 @@
 
 **snow-TWCR** is an R workflow for mapping **snow depth (cm)** and **snow water equivalent (SWE, mm)** across a study area using (i) field snow observations and (ii) storm-integrated meteorological forcing from automatic weather stations (AWS). The workflow produces GeoTIFF rasters on a DEM grid (ready for QGIS).
 
+**Repository title (for citation):**  
+*snow-TWCR: Storm-integrated mapping of snow depth and SWE using wet-bulb temperature and a two-stage occurrence–magnitude model (field-conditioned)*
+
 ---
 
 ## What this repository includes
 
 - **`code/`**  
   R scripts that:
-  - compute storm-cumulative **snow‑favorable precipitation** (`P_snow`) from AWS precipitation and wet‑bulb temperature (Tw), adjusted by an atmospheric lapse rate and blended across stations using distance weighting
+  - compute storm-cumulative **snow‑favorable precipitation** (`P_snow`) from AWS precipitation and wet‑bulb temperature (Tw), adjusted by a constant atmospheric lapse rate and blended across stations using distance weighting
   - map **snow depth** and **SWE** over the full study area using a two-stage occurrence × magnitude model
   - export final GeoTIFFs to a single clean output folder (`maps_final/`)
 
@@ -28,7 +31,7 @@ This repository intentionally does **not** include:
 - AWS raw data files
 - the DEM raster(s)
 
-It is provided as a **code + formulas** package accompanying a manuscript.
+The workflow uses field measurements as **inputs**, but the measurement datasets are not distributed in this repository. This repo provides a **code + formulas** package accompanying a manuscript.
 
 ---
 
@@ -36,11 +39,11 @@ It is provided as a **code + formulas** package accompanying a manuscript.
 
 ### 1) Storm-integrated snow-favorable precipitation (`P_snow`)
 From the storm start (**12 Jan 2025 00:00 local**) to each survey time (**12:00 local**) at **10-minute resolution**, we estimate at every DEM grid cell:
-- precipitation as a **distance-weighted blend** of all available AWS stations
+- precipitation as a **distance-weighted blend** of all available AWS stations (continuous weighting; no nearest-station boundary)
 - wet-bulb temperature (Tw) from air temperature and relative humidity, adjusted to elevation using a **constant lapse rate** (−6.5 °C/km)
 - a **snow fraction** from Tw using a transition band (snow → mixed → rain)
 
-We then accumulate **snow-favorable precipitation**:
+We then accumulate snow-favorable precipitation:
 \[
 P_{\text{snow}}(x) = \sum_t P(x,t)\,f_s(x,t)
 \]
@@ -49,7 +52,7 @@ P_{\text{snow}}(x) = \sum_t P(x,t)\,f_s(x,t)
 We map snow depth and SWE using a two-stage model:
 1. **Occurrence**: logistic regression predicting snow presence/absence  
 2. **Magnitude**: linear regression on `log(1 + value)` fitted only where snow exists, then back-transformed  
-Final prediction is **probability × magnitude**, with additional rules to remove spurious low-elevation snow, enforce realistic high-elevation snow probability, and hard-condition predictions at observation grid cells.
+Final prediction is **probability × magnitude**, with additional rules to remove spurious low-elevation snow, enforce realistic high-elevation snow probability, and hard-condition predictions at observation grid cells (field-conditioned).
 
 ---
 
@@ -126,3 +129,5 @@ See the `LICENSE` file.
 ## Contact
 
 Angelos Theodorou
+
+https://theodorouweather.com/ 
