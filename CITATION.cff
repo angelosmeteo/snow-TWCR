@@ -1,12 +1,12 @@
 cff-version: 1.2.0
 message: "If you use this code and formula package, please cite it as below."
-title: "snow-TWCR: Storm-integrated mapping of snow depth and SWE using wet-bulb temperature and a two-stage occurrence–magnitude model"
+title: "snow-TWCR: Storm-integrated mapping of snow depth and SWE using wet-bulb temperature and a two-stage occurrence–magnitude model (field-conditioned)"
 type: software
 authors:
   - family-names: Theodorou
     given-names: Angelos
-repository-code: "https://github.com/AngelosT/snow-TWCR"
-url: "https://github.com/AngelosT/snow-TWCR"
+repository-code: "https://github.com/angelosmeteo/snow-TWCR"
+url: "https://github.com/angelosmeteo/snow-TWCR"
 license: MIT
 version: 1.0.0
 date-released: 2026-01-15
@@ -15,6 +15,7 @@ keywords:
   - SWE
   - wet-bulb temperature
   - precipitation phase
-  - two-stage model
+  - occurrence–magnitude model
   - storm integration
+  - field-conditioned
   - GIS
