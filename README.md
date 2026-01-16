@@ -38,18 +38,18 @@ The workflow uses field measurements as **inputs**, but the measurement datasets
 ## Method summary (plain language)
 
 ### 1) Storm-integrated snow-favorable precipitation (`P_snow`)
-From the storm start (**12 Jan 2025 00:00 local**) to each survey time (**12:00 local**) at **10-minute resolution**, we estimate at every DEM grid cell:
+From the storm start (**12 Jan 2025 00:00 local**) to each survey time (**12:00 local**) at **10-minute resolution**, I estimate at every DEM grid cell:
 - precipitation as a **distance-weighted blend** of all available AWS stations (continuous weighting; no nearest-station boundary)
 - wet-bulb temperature (Tw) from air temperature and relative humidity, adjusted to elevation using a **constant lapse rate** (−6.5 °C/km)
 - a **snow fraction** from Tw using a transition band (snow → mixed → rain)
 
-We then accumulate snow-favorable precipitation:
+I then accumulate snow-favorable precipitation:
 \[
 P_{\text{snow}}(x) = \sum_t P(x,t)\,f_s(x,t)
 \]
 
 ### 2) Two-stage mapping (occurrence × magnitude)
-We map snow depth and SWE using a two-stage model:
+I map snow depth and SWE using a two-stage model:
 1. **Occurrence**: logistic regression predicting snow presence/absence  
 2. **Magnitude**: linear regression on `log(1 + value)` fitted only where snow exists, then back-transformed  
 Final prediction is **probability × magnitude**, with additional rules to remove spurious low-elevation snow, enforce realistic high-elevation snow probability, and hard-condition predictions at observation grid cells (field-conditioned).
@@ -110,9 +110,8 @@ SWE caps are derived from the fixed depth caps and a robust density estimate (se
 ## Citation / DOI
 
 - If you use or adapt this code, please cite it using the information in **`CITATION.cff`**.
-- A Zenodo DOI will be added after archiving a release (GitHub → Zenodo).
 
-Placeholders (to be filled after DOI minting):
+Placeholders:
 - Zenodo Version DOI (exact release used in the paper): 10.5281/zenodo.18270203
 - Zenodo Concept DOI (all versions): 10.5281/zenodo.18270203
 
