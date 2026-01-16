@@ -113,8 +113,8 @@ SWE caps are derived from the fixed depth caps and a robust density estimate (se
 - A Zenodo DOI will be added after archiving a release (GitHub → Zenodo).
 
 Placeholders (to be filled after DOI minting):
-- Zenodo Version DOI (exact release used in the paper): **TBD**
-- Zenodo Concept DOI (all versions): **TBD**
+- Zenodo Version DOI (exact release used in the paper): 10.5281/zenodo.18270203
+- Zenodo Concept DOI (all versions): 10.5281/zenodo.18270203
 
 Repository URL: https://github.com/angelosmeteo/snow-TWCR
 
