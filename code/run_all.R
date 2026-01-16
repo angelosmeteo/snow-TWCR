@@ -55,7 +55,7 @@ dir.create(out_met,   showWarnings = FALSE, recursive = TRUE)
 # -----------------------------
 # STUDY REGION (EPSG:4326 bbox)
 # -----------------------------
-bbox_ll <- list(S=40.612980, N=40.693127, W=23.600922, E=23.747495)
+bbox_ll <- list(S=40.612980, N=40.693127, W=23.577241, E=23.747495)
 
 # UTM zone 34N
 utm_crs <- "EPSG:32634"
