@@ -1,8 +1,9 @@
+
 # ============================================================
 # helpers_io.R
 # Utilities:
 #   - extract DEM elevation at points (robust to missing coords)
-#   - distance-to-sea raster (Natural Earth countries polygons)
+#   - distance-to-sea raster (Natural Earth PHYSICAL coastline; excludes lakes)
 #   - SWE point builder with elevation-based density interpolation
 # ============================================================
 
@@ -34,23 +35,45 @@ extract_elev_points <- function(df_lonlat, dem_rast) {
   out
 }
 
-# ---- distance-to-sea raster (km) using Natural Earth countries polygons
+# ---- distance-to-sea raster (km) using Natural Earth PHYSICAL coastline
+#      This avoids inland lakes (e.g., Lake Volvi) being treated as "sea".
+#
+# Notes:
+# - Uses Natural Earth "coastline" (physical) as the target geometry.
+# - Distance is computed in projected units (UTM) and returned in km.
+# - terra::distance() measures distance to the supplied vector features. [2](https://github.com/topics/snow)
+# - Natural Earth provides coastline separately from lakes/reservoirs. [1](https://tteck.github.io/Proxmox/)
 build_distance_to_sea_km <- function(dem_c, bbox_poly_ll, utm_crs) {
 
   sf::sf_use_s2(FALSE)
 
-  land_sf   <- rnaturalearth::ne_countries(scale = 50, returnclass = "sf")
-  land_clip <- suppressWarnings(sf::st_intersection(land_sf, bbox_poly_ll))
-  land_union <- tryCatch(sf::st_union(sf::st_make_valid(land_clip)),
-                         error=function(e) sf::st_union(land_clip))
+  # Get marine coastline (physical dataset; lakes are separate theme)
+  coast_sf <- rnaturalearth::ne_download(
+    scale = 50, category = "physical", type = "coastline", returnclass = "sf"
+  )
 
-  sea_sf_ll <- sf::st_difference(bbox_poly_ll, land_union)
-  if (length(sea_sf_ll) == 0) stop("❌ sea polygon empty after bbox-land difference.")
+  # Ensure CRS compatibility for intersection
+  if (sf::st_crs(coast_sf) != sf::st_crs(bbox_poly_ll)) {
+    coast_sf <- sf::st_transform(coast_sf, sf::st_crs(bbox_poly_ll))
+  }
 
-  sea_v <- terra::project(terra::vect(sea_sf_ll), utm_crs)
+  # Clip coastline to bbox
+  coast_clip <- suppressWarnings(sf::st_intersection(coast_sf, bbox_poly_ll))
 
-  # Euclidean distance (m) -> km
-  terra::distance(dem_c, sea_v) / 1000
+  if (nrow(coast_clip) == 0) {
+    stop("❌ coastline clip empty. Check bbox extent/CRS.")
+  }
+
+  # Make valid and union for robustness (optional but safe)
+  coast_union <- tryCatch(
+    sf::st_union(sf::st_make_valid(coast_clip)),
+    error = function(e) sf::st_union(coast_clip)
+  )
+
+  # Project to UTM and compute Euclidean distance (m -> km)
+  coast_v <- terra::project(terra::vect(coast_union), utm_crs)
+
+  terra::distance(dem_c, coast_v) / 1000
 }
 
 # ---- monotonic decreasing density with elevation (isotonic regression)
@@ -83,7 +106,7 @@ estimate_density_by_elev <- function(elev_query, elev_obs, dens_obs) {
 build_swe_points_from_depth_density <- function(depth_pt, density_raw, dem_elev_field="elev_dem", dens_global_mean) {
 
   out <- depth_pt %>%
-    left_join(density_raw %>% select(survey_date, point_id, density_gcm3),
+    left_join(density_raw %>% dplyr::select(survey_date, point_id, density_gcm3),
               by=c("survey_date","point_id")) %>%
     group_by(survey_date) %>%
     group_modify(function(d, key) {
@@ -115,4 +138,3 @@ build_swe_points_from_depth_density <- function(depth_pt, density_raw, dem_elev_
 
   out
 }
-
